@@ -2,9 +2,10 @@ import pygame
 import sys
 
 from pipeline import build_steer_map, pil_to_surface
-from algorithms import Wanderer
+from algorithms import Wanderer, Grid
+from ui import SettingsPanel
 
-WIN_W, WIN_H = 1800, 1400
+WIN_W, WIN_H = 900, 700
 PAD = 30       # top strip for HUD
 
 # ---------------------------------------------------------------------------
@@ -45,12 +46,20 @@ FONT   = pygame.font.SysFont("monospace", 14)
 # ---------------------------------------------------------------------------
 
 algorithms = [
+    Grid    (WIN_W, WIN_H, IMG_W, IMG_H, IMG_X, IMG_Y, steer_map, brightness_map),
     Wanderer(WIN_W, WIN_H, IMG_W, IMG_H, IMG_X, IMG_Y, steer_map, brightness_map),
 ]
 algo_index = 0
 algo = algorithms[algo_index]
 
 show_bg = True
+
+# ---------------------------------------------------------------------------
+# Settings panel
+# ---------------------------------------------------------------------------
+
+panel = SettingsPanel(WIN_W, WIN_H)
+panel.set_algo(algo)
 
 # ---------------------------------------------------------------------------
 # Main loop
@@ -61,6 +70,11 @@ while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
+
+        # Settings panel gets first pick of mouse events
+        if panel.handle_event(event):
+            continue
+
         if event.type == pygame.KEYDOWN:
             if event.key == pygame.K_ESCAPE:
                 running = False
@@ -68,9 +82,16 @@ while running:
                 algo.clear()
             elif event.key == pygame.K_b:
                 show_bg = not show_bg
+            elif event.key == pygame.K_u:
+                panel.toggle()
             elif event.key == pygame.K_TAB:
                 algo_index = (algo_index + 1) % len(algorithms)
                 algo = algorithms[algo_index]
+                panel.set_algo(algo)
+            elif event.key == pygame.K_r:
+                if hasattr(algo, 'reload_config'):
+                    algo.reload_config()
+                panel.set_algo(algo)
             else:
                 algo.handle_key(event.key)
 
@@ -83,6 +104,8 @@ while running:
     else:
         pygame.draw.rect(screen, (245, 240, 230), (IMG_X, IMG_Y, IMG_W, IMG_H))
     screen.blit(algo.marks, (0, 0))
+    if hasattr(algo, 'grid_lines') and algo.show_grid:
+        screen.blit(algo.grid_lines, (0, 0))
 
     # Dot
     pygame.draw.circle(screen, (220, 60, 60), algo.dot_pos(), 5, 2)
@@ -90,9 +113,12 @@ while running:
     # HUD
     bg_str  = "ON" if show_bg else "OFF"
     hud_txt = (f"[{algo.name}]  {algo.hud_text()}"
-               f"  SPACE=clear  B=bg({bg_str})  TAB=switch  ESC=quit")
+               f"  SPACE=clear  B=bg({bg_str})  TAB=switch  U=settings  ESC=quit")
     hud = FONT.render(hud_txt, True, (200, 200, 200))
     screen.blit(hud, (10, (PAD - hud.get_height()) // 2))
+
+    # Settings panel drawn last (on top of everything)
+    panel.draw(screen)
 
     pygame.display.flip()
     clock.tick(60)

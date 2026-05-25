@@ -1,6 +1,9 @@
+import importlib
 import math
 import random
 import pygame
+
+import config
 
 
 class Wanderer:
@@ -56,10 +59,10 @@ class Wanderer:
 
         # Number of physics steps computed per frame. More steps = faster coverage
         # without changing the visual frame rate.
-        self.steps_per_frame = 120
+        self.steps_per_frame = config.STEPS_PER_FRAME
 
         # --- Appearance ---
-        self.steer_scale = 10.0   # multiplier applied to the raw steer value
+        self.steer_scale = config.STEER_SCALE  # multiplier applied to the raw steer value
         self.color_index = 0      # index into COLORS (currently black only)
         self.jitter      = False  # if True, each mark is a small scattered cluster
 
@@ -224,6 +227,13 @@ class Wanderer:
                 self._draw_mark()
             # else: no valid direction at all — skip this step silently
 
+    def reload_config(self):
+        """Re-read config.py from disk and apply new defaults."""
+        importlib.reload(config)
+        self.steer_scale     = config.STEER_SCALE
+        self.steps_per_frame = config.STEPS_PER_FRAME
+        self.marks.fill((0, 0, 0, 0))
+
     def handle_key(self, key):
         if pygame.K_1 <= key <= pygame.K_5:
             self.color_index = key - pygame.K_1;       return True
@@ -243,6 +253,13 @@ class Wanderer:
     def dot_pos(self):
         """Return the current pencil position in window coordinates for the HUD dot."""
         return (int(self.x) + self.img_x, int(self.y) + self.img_y)
+
+    def get_sliders(self):
+        """Slider definitions consumed by ui.SettingsPanel."""
+        return [
+            dict(label='Steer Scale',  attr='steer_scale',     min=0.0, max=30.0, step=0.5, rebuild=None),
+            dict(label='Steps/Frame',  attr='steps_per_frame', min=10,  max=500,  step=10,  rebuild=None),
+        ]
 
     def clear(self):
         self.marks.fill((0, 0, 0, 0))
